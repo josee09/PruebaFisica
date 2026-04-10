@@ -1,0 +1,57 @@
+version: "3.7"
+services:
+  # app:
+  #   build:
+  #     args:
+  #       user: dev
+  #       uid: 1001
+  #     context: ./
+  #     dockerfile: Dockerfile
+  #   image: php-oracle
+  #   container_name: prueba-fisica-api-app
+  #   restart: unless-stopped
+  #   working_dir: /var/www/
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./API/:/var/www
+  #   networks:
+  #     - prueba-fisica-app
+
+  db:
+    image: mariadb:latest
+    container_name: prueba-fisica-api-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    ports:
+      - "3319:3306"
+    volumes:
+      - ./docker-compose/mysql:/docker-entrypoint-initdb.d
+      - prueba-fisica-db:/var/lib/mysql
+    networks:
+      - prueba-fisica-app
+
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: prueba-fisica-api-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:80"
+  #   volumes:
+  #     - ./API/:/var/www
+  #     - ./docker-compose/nginx:/etc/nginx/conf.d
+  #   networks:
+  #     - prueba-fisica-app
+
+volumes:
+  prueba-fisica-db:
+
+networks:
+  prueba-fisica-app:
+    driver: bridge
