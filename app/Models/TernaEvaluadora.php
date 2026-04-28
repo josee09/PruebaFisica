@@ -58,7 +58,7 @@ class TernaEvaluadora extends Model
     public function evaluadosAsignados()
     {
         return $this->belongsToMany(Evaluado::class, 'evaluado_terna_evaluadora')
-                    ->withPivot('periodo', 'fecha_asignacion', 'estado')
+                    ->withPivot('periodo', 'fecha_asignacion', 'estado', 'pechada', 'abdominal', 'carrera')
                     ->withTimestamps();
     }
 }

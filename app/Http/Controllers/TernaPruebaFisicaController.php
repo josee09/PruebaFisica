@@ -46,10 +46,6 @@ class TernaPruebaFisicaController extends Controller
         }
 
         $evaluados = $terna->evaluadosAsignados;
-        
-        foreach ($evaluados as $evaluado) {
-            $evaluado->eventoPrincipal = EventosPrincipal::where('id_evaluado', $evaluado->id)->first();
-        }
 
         return view('terna_pruebas.menu', compact('terna', 'evaluados'));
     }
@@ -58,11 +54,6 @@ class TernaPruebaFisicaController extends Controller
     {
         $terna = TernaEvaluadora::findOrFail($terna_id);
         $evaluados = $terna->evaluadosAsignados;
-
-        foreach ($evaluados as $evaluado) {
-            $evaluado->eventoPrincipal = EventosPrincipal::where('id_evaluado', $evaluado->id)->first();
-        }
-
         return view('terna_pruebas.evaluacion_evento', compact('terna', 'evaluados', 'evento'));
     }
 
@@ -73,32 +64,25 @@ class TernaPruebaFisicaController extends Controller
         $evento = $request->input('evento'); 
         $cantidad = $request->input('cantidad');
 
-        // Buscar registro médico previo (obligatorio según BD)
-        $medico = Medico::where('id_evaluado', $evaluado_id)->latest()->first();
-        
-        $registro = EventosPrincipal::firstOrCreate(
-            ['id_evaluado' => $evaluado_id],
-            [
-                'user_id' => auth()->id(), 
-                'id_medico' => $medico ? $medico->id : 1, // Fallback si no hay médico (podría fallar por FK)
-                'evaluacion' => 'NORMAL'
-            ]
-        );
-
-        if ($evento == 'pechadas') {
-            $registro->pechada = $cantidad;
-        } elseif ($evento == 'abdominales') {
-            $registro->abdominal = $cantidad;
-        } elseif ($evento == 'carrera') {
-            $registro->carrera = $cantidad;
+        $columna = $evento;
+        if ($evento === 'pechadas') {
+            $columna = 'pechada';
+        } elseif ($evento === 'abdominales') {
+            $columna = 'abdominal';
         }
 
-        $registro->save();
+        $terna = TernaEvaluadora::findOrFail($terna_id);
+        
+        $terna->evaluadosAsignados()->updateExistingPivot($evaluado_id, [
+            $columna => $cantidad,
+            'updated_at' => now()
+        ]);
 
         if ($request->ajax()) {
+            $evaluado = Evaluado::find($evaluado_id);
             return response()->json([
                 'success' => true,
-                'mensaje' => 'Resultado guardado para ' . mb_strtoupper($registro->evaluado->nombre),
+                'mensaje' => 'Resultado guardado para ' . mb_strtoupper($evaluado->nombre),
                 'evento' => $evento
             ]);
         }
@@ -114,23 +98,22 @@ class TernaPruebaFisicaController extends Controller
         $fecha = date('d-m-Y');
 
         foreach ($evaluados as $evaluado) {
-            $registro = EventosPrincipal::where('id_evaluado', $evaluado->id)->first();
-            $evaluado->eventoPrincipal = $registro; // Asignar para que esté disponible en la vista
-            $evaluado->resultadoFinal = $this->calcularCalificacionFinal($evaluado, $registro);
+            $evaluado->resultadoFinal = $this->calcularCalificacionFinal($evaluado);
         }
 
         return view('terna_pruebas.resumen', compact('terna', 'evaluados', 'fecha'));
     }
 
-    private function calcularCalificacionFinal($evaluado, $registro)
+    private function calcularCalificacionFinal($evaluado)
     {
-        if (!$registro || !$registro->pechada || !$registro->abdominal || !$registro->carrera) {
+        $pivot = $evaluado->pivot;
+        if (!$pivot || !$pivot->pechada || !$pivot->abdominal || !$pivot->carrera) {
             return ['calificacion' => 0, 'observacion' => 'INCOMPLETO'];
         }
 
-        $p = $this->calcularScoreIndividual($evaluado, 'pechadas', $registro->pechada);
-        $a = $this->calcularScoreIndividual($evaluado, 'abdominales', $registro->abdominal);
-        $c = $this->calcularScoreIndividual($evaluado, 'carrera', $registro->carrera);
+        $p = $this->calcularScoreIndividual($evaluado, 'pechadas', $pivot->pechada);
+        $a = $this->calcularScoreIndividual($evaluado, 'abdominales', $pivot->abdominal);
+        $c = $this->calcularScoreIndividual($evaluado, 'carrera', $pivot->carrera);
 
         $promedio = round(($p + $a + $c) / 3, 2);
 
@@ -172,15 +155,14 @@ class TernaPruebaFisicaController extends Controller
     {
         $evaluado_id = $request->input('evaluado_id');
         $terna_id = $request->input('terna_id');
-        
-        $registro = EventosPrincipal::where('id_evaluado', $evaluado_id)->first();
-        
-        if ($registro) {
-            $registro->pechada = $request->input('pechada');
-            $registro->abdominal = $request->input('abdominal');
-            $registro->carrera = $request->input('carrera');
-            $registro->save();
-        }
+
+        $terna = TernaEvaluadora::findOrFail($terna_id);
+        $terna->evaluadosAsignados()->updateExistingPivot($evaluado_id, [
+            'pechada' => $request->input('pechada'),
+            'abdominal' => $request->input('abdominal'),
+            'carrera' => $request->input('carrera'),
+            'updated_at' => now()
+        ]);
 
         return redirect()->route('terna.pruebas.resumen', [$terna_id])->with('mensaje', 'Resultados actualizados correctamente.');
     }

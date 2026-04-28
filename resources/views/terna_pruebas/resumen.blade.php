@@ -55,9 +55,9 @@
                                     <button type="button" class="btn btn-info btn-sm btn-edit-individual" 
                                         data-id="{{ $evaluado->id }}"
                                         data-nombre="{{ mb_strtoupper($evaluado->nombre . ' ' . $evaluado->apellido) }}"
-                                        data-pechada="{{ $evaluado->eventoPrincipal->pechada ?? 0 }}"
-                                        data-abdominal="{{ $evaluado->eventoPrincipal->abdominal ?? 0 }}"
-                                        data-carrera="{{ $evaluado->eventoPrincipal->carrera ?? '00:00' }}">
+                                        data-pechada="{{ $evaluado->pivot->pechada ?? 0 }}"
+                                        data-abdominal="{{ $evaluado->pivot->abdominal ?? 0 }}"
+                                        data-carrera="{{ $evaluado->pivot->carrera ?? '00:00' }}">
                                         <i class="fa fa-pencil"></i> EDITAR
                                     </button>
                                 </td>
